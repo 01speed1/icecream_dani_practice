@@ -1,0 +1,21 @@
+extends ../template
+
+block body
+  h1 Agrega un nuevo helado
+
+  - if(message)
+    p #{message}
+
+  - if(error)
+    p #{error}
+
+  form(action=actionUrl method="post")
+    input(type="hidden" value=id ? id: "" name="id" id="id")
+
+    label( for="name") IceCream Name
+    input( type="text" value=name ? name: "" name="name" id="name")
+
+    label( for="price") Price
+    input( type="number" value=price ? price: "" name="price" id="price")
+
+    input( type="submit" value=id ?"Editar helado" : "Agregar helado")

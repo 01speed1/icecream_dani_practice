@@ -1,0 +1,15 @@
+//- layout.pug
+html
+  head
+    title My Site - #{title}
+    script(src='/jquery.js')
+    script(src='/pets.js')
+    script(src='/jquery.js')
+  body
+    h1= title
+    - var pets = ['cat', 'dog']
+    each petName in pets
+      include pet.pug
+    footer.black.m24 copyright Dani
+      #footer
+        p some footer content

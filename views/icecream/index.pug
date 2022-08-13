@@ -1,0 +1,27 @@
+extends ../template
+
+block body
+  h1 Los Helados de Dani!
+
+  - if(message)
+    p #{message}
+
+  a(href="/icecream/new") Aregar un helado
+  table#icecreams
+    thead
+      tr
+        th ID
+        th Name
+        th Price
+        th Accions
+    tbody
+      each iceCream in MyIceCreams
+        tr
+          td #{iceCream.id}
+          td #{iceCream.name}
+          td #{iceCream.price}
+          td
+            a(href=`/icecream/edit/${iceCream.id}`)
+              button Editar
+            form( style={display: "inline"} action=`/icecream/${iceCream.id}?_method=DELETE`, method="post")
+              input(type="submit", value="Eliminar")

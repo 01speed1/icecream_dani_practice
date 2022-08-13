@@ -1,23 +1,73 @@
 const express = require("express");
+const bodyParser = require("body-parser");
+var methodOverride = require("method-override");
+//var mysql = require("mysql");
+const knex = require("knex");
+
 const app = express();
 const port = 3000;
-//const bodyParser = require('body-parser');
-//app.use(bodyParser.json());
-//app.use(bodyParser.urlencoded({ extended: true }));
 
+const db = knex({
+  client: "mysql",
+  connection: {
+    host: "localhost",
+    user: "root",
+    password: "password",
+    database: "miheladodb",
+  },
+});
+
+/* var connection = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "password",
+  database: "miheladodb",
+}); */
+
+/* connection.connect(function (error) {
+  if (error) {
+    console.log("Hey DB disconnected");
+  }
+
+  console.log("The DB is connected");
+});
+ */
+/* const queryString = `CREATE TABLE IF NOT EXISTS icecream (
+    id int not null auto_increment,
+    name varchar(255) not null,
+    price int not null,
+    primary key ( id )
+)`; */
+
+/* connection.query(queryString, function (error, results, fields) {
+  if (error) throw error;
+  console.log("table icecream created or is ok");
+}); */
+
+//connection.end();
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(methodOverride("_method"));
+
+app.use(express.static(__dirname + "/public"));
 app.use(express.json());
 
-const MyIceCreams = [
-  { id: 78, name: "Vanilla", price: "40" },
-  { id: 89, name: "chocolate", price: "200" },
-];
+// Se indica el directorio donde se almacenarán las plantillas
+app.set("views", __dirname + "/views");
+
+// Se indica el motor del plantillas a utilizar
+app.set("view engine", "pug");
+
+let countVisits = 0;
+
+app.get("/icecream/new", (request, response) => {
+  response.render("icecream/new", { actionUrl: "/icecream" });
+});
 
 app.get("/icecream/:id", (request, response) => {
   const id = request.params.id;
 
   const { price } = request.query;
-
-  console.log({ price });
 
   const foundIceCream = MyIceCreams.find(function (icecream) {
     return icecream.id === +id ? icecream : null;
@@ -38,59 +88,108 @@ app.get("/icecream/:id", (request, response) => {
   response.json(foundIceCream);
 });
 
-app.get("/icecream", (request, response) => {
-  response.json(MyIceCreams);
+app.get("/icecream", async (request, response) => {
+  try {
+    const results = await db("icecream").select("id", "name", "price");
+
+    return response.render("icecream/index", { MyIceCreams: results });
+  } catch (error) {
+    return response.render("icecream/index", {
+      error: "Error al consultar helados",
+      MyIceCreams: [],
+    });
+  }
 });
 
-app.post("/icecream", (request, response) => {
-  //recibe el body de la peticion
-  const { id, name, price } = request.body;
-
-  const newIceCream = { id: +id, name, price };
-
-  //mandar la informcion al arreglo de objetos
-
-  MyIceCreams.push(newIceCream);
-
-  //responder que el helado se agrego
-  response.json({ message: "Ice Cream added", newIceCream });
-});
-
-app.put("/icecream/:id", (request, response) => {
-  // get info client
-
+app.get("/icecream/edit/:id", async (request, response) => {
   const { id } = request.params;
 
-  if (!id) {
-    response.json({ message: "Id is required" });
-  }
+  let queryResponse = await db.select().from("icecream").where("id", "=", id);
+  console.log(queryResponse);
+  let iceCream = queryResponse[0];
+  return response.render("icecream/new", {
+    ...iceCream,
+    actionUrl: `/icecream/${iceCream.id}?_method=PUT`,
+  });
+  /////////////////////////////////////////
+  /* let queryString = `select * from icecream where id = ${id}`;
+
+  connection.query(queryString, function (error, results, fields) {
+    if (error || results.length === 0) {
+      console.log(error);
+
+      queryString = "select * from icecream";
+
+      return connection.query(queryString, function (error, results, fields) {
+        return response.render("icecream/index", {
+          message: "ese helado no existe, intenta otro",
+          MyIceCreams: results,
+        });
+      });
+    }
+
+    const foundIceCream = results[0];
+
+    return response.render("icecream/new", {
+      ...foundIceCream,
+      actionUrl: `/icecream/${foundIceCream.id}?_method=PUT`,
+    });
+  }); */
+});
+
+// este crea un helado nuevo
+app.post("/icecream", async(request, response) => {
+  //recibe el body de la peticion
+  const { name, price } = request.body;
+
+  await db("icecream").insert({
+    name:name,
+    price:price
+  })
+  return response.redirect("/icecream")
+ /*  const queryString = `
+    insert into icecream (name, price) values ("${name}", "${price}");
+  `;
+
+  connection.query(queryString, function (error, results, fields) {
+    if (error) {
+      console.log(error);
+
+      return response.render("icecream/new", {
+        error: "fallo agregar el helado",
+      });
+    }
+
+    return response.redirect("/icecream");
+  }); */
+});
+
+app.put("/icecream/:id", async (request, response) => {
+  const { id } = request.params;
 
   const { name, price } = request.body;
 
-  // cambiar la informacion actual por la del cliente
+  await db("icecream")
+    .update({ name: name, price: price })
+    .where("id", "=", id);
 
-  MyIceCreams.forEach((icecream) => {
-    if (icecream.id === +id) {
-      icecream.name = name;
-      icecream.price = price;
-    }
-    return icecream;
-  });
+  response.redirect("/icecream");
 
-  // responder con la actualizacion
-  response.json({ message: "Ice Cream updated" });
 });
 
-app.delete("/icecream/:id", (request, response) => {
+app.delete("/icecream/:id", async(request, response) => {
   const { id } = request.params;
 
-  const foundIndexIceCream = MyIceCreams.indexOf(function (icecream) {
-    return icecream.id === +id;
-  });
+  await db("icecream").del().where('id','=',id)
+  response.redirect("/icecream");
 
-  MyIceCreams.splice(foundIndexIceCream, 1);
-
-  response.json({ message: "Ice Cream deleted" });
+  /* const queryString = `DELETE FROM icecream WHERE id="${id}"`;
+  connection.query(queryString, function (error, results) {
+    if (error) {
+      console.log(error);
+    }
+    response.redirect("/icecream");
+  }); */
 });
 
 app.listen(port, () =>
